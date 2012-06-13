@@ -8,9 +8,15 @@ import com.google.common.base.Preconditions;
 import com.rabbitmq.client.BasicProperties;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +68,7 @@ public class RabbitMQUtils {
         String username = context.getString("user");
         
         if(null==username){
-            factory.setUsername("guest");
+            factory.setUsername(ConnectionFactory.DEFAULT_USER);
         } else {
             factory.setUsername(username);
         }
@@ -70,7 +76,7 @@ public class RabbitMQUtils {
         String password = context.getString("password");
         
         if(null==password){
-            factory.setPassword("guest");
+            factory.setPassword(ConnectionFactory.DEFAULT_PASS);
         } else {
             factory.setPassword(password);
         }
@@ -80,6 +86,14 @@ public class RabbitMQUtils {
         if(null!=virtualHost){
             factory.setVirtualHost(virtualHost);
         }
+        
+        int connectionTimeout = context.getInteger("connectiontimeout", -1);
+        
+        if(connectionTimeout>-1){
+           factory.setConnectionTimeout(connectionTimeout); 
+        }
+        
+        
         
 //        boolean useSSL = context.getBoolean("usessl", false);
 //        if(useSSL){
