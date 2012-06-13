@@ -33,4 +33,6 @@ public class RabbitMQConstants {
     public final static String CONFIG_PASSWORD="password";
     public final static String CONFIG_VIRTUALHOST="virtualhost";
     public final static String CONFIG_CONNECTIONTIMEOUT="connectiontimeout";
+    public final static String CONFIG_EXCHANGENAME="exchangename";
+    public final static String CONFIG_QUEUENAME="queuename";
 }

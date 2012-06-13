@@ -60,13 +60,13 @@ public class RabbitMQUtil {
     }
     
     public static String getQueueName(Context context) {
-        String queueName = context.getString("queuename");
+        String queueName = context.getString(RabbitMQConstants.CONFIG_QUEUENAME);
         Preconditions.checkState(queueName!=null, "No queueName specified.");
         return queueName;
     }
     
     public static String getExchangeName(Context context){
-        return context.getString("exchangename", "");
+        return context.getString(RabbitMQConstants.CONFIG_QUEUENAME, "");
     }
     
     public static ConnectionFactory getFactory(Context context){
