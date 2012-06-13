@@ -30,8 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class RabbitMQUtils {
-    private static final Logger log = LoggerFactory.getLogger(RabbitMQUtils.class);
+public class RabbitMQUtil {
+    private static final Logger log = LoggerFactory.getLogger(RabbitMQUtil.class);
     static final String PREFIX="RabbitMQ";
     
     private static void setTimestamp(Map<String,String> headers, BasicProperties properties){

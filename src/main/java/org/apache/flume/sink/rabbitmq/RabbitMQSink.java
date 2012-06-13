@@ -43,21 +43,21 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     
     @Override
     public void configure(Context context) {
-        _ConnectionFactory = RabbitMQUtils.getFactory(context);
-        _QueueName = RabbitMQUtils.getQueueName(context);
-        _ExchangeName= RabbitMQUtils.getExchangeName(context);        
+        _ConnectionFactory = RabbitMQUtil.getFactory(context);
+        _QueueName = RabbitMQUtil.getQueueName(context);
+        _ExchangeName= RabbitMQUtil.getExchangeName(context);        
     }
 
     @Override
     public synchronized void stop() {
-        RabbitMQUtils.close(_Connection, _Channel);      
+        RabbitMQUtil.close(_Connection, _Channel);      
         super.stop();
     }
     
     private void resetConnection(){
         _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
         if(log.isWarnEnabled())log.warn(this.getName() + " - Closing RabbitMQ connection and channel due to exception.");
-        RabbitMQUtils.close(_Connection, _Channel);
+        RabbitMQUtil.close(_Connection, _Channel);
         _Connection=null;
         _Channel=null;
     }

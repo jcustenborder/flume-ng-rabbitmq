@@ -47,21 +47,21 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
     
     @Override
     public void configure(Context context) {
-        _ConnectionFactory = RabbitMQUtils.getFactory(context);        
-        _QueueName = RabbitMQUtils.getQueueName(context);  
+        _ConnectionFactory = RabbitMQUtil.getFactory(context);        
+        _QueueName = RabbitMQUtil.getQueueName(context);  
     }
 
     
     @Override
     public synchronized void stop() {
-        RabbitMQUtils.close(_Connection, _Channel);      
+        RabbitMQUtil.close(_Connection, _Channel);      
         super.stop();
     }
     
     private void resetConnection(){
         _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
         if(log.isWarnEnabled())log.warn(this.getName() + " - Closing RabbitMQ connection and channel due to exception.");
-        RabbitMQUtils.close(_Connection, _Channel);
+        RabbitMQUtil.close(_Connection, _Channel);
         _Connection=null;
         _Channel=null;
     }
@@ -112,7 +112,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         }
         
         try {
-            Map<String, String> properties = RabbitMQUtils.setProperties(response.getProps());
+            Map<String, String> properties = RabbitMQUtil.setProperties(response.getProps());
 
             Event event = new SimpleEvent();
             event.setBody(response.getBody());
