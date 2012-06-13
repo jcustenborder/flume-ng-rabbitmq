@@ -83,7 +83,7 @@ public class RabbitMQUtil {
             factory.setPort(port);
         }
         
-        String username = context.getString(RabbitMQConstants.CONFIG_USER);
+        String username = context.getString(RabbitMQConstants.CONFIG_USERNAME);
         
         if(null==username){
             factory.setUsername(ConnectionFactory.DEFAULT_USER);
