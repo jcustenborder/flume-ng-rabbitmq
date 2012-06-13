@@ -24,8 +24,8 @@ import com.rabbitmq.client.BasicProperties;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
+import org.apache.commons.collections.map.CaseInsensitiveMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,16 +35,27 @@ public class RabbitMQUtil {
     static final String PREFIX="RabbitMQ";
     
     private static void setTimestamp(Map<String,String> headers, BasicProperties properties){
-        Date date = properties.getTimestamp()==null?new Date():properties.getTimestamp();
-        
+        Date date = properties.getTimestamp()==null?new Date():properties.getTimestamp();        
         Long value=date.getTime();
         headers.put("timestamp", value.toString());
     }
     
-    public static Map<String,String> setProperties(BasicProperties properties){
+    public static Map<String,String> getHeaders(BasicProperties properties){
         Preconditions.checkArgument(properties!=null, "properties cannot be null.");
-        Map<String,String> headers = new HashMap<String, String>();
+        Map<String,String> headers = new CaseInsensitiveMap();
         setTimestamp(headers, properties);
+        
+        Map<String, Object> rabbitmqHeaders = properties.getHeaders();
+        
+        if(null!=rabbitmqHeaders){
+            for(Map.Entry<String, Object> kvp:rabbitmqHeaders.entrySet()){
+                if(!headers.containsKey(kvp.getKey())&&null!=kvp.getValue()){
+                    if(log.isInfoEnabled())log.info("header=" + kvp.getKey() + " value=" + kvp.getValue());
+                    headers.put(kvp.getKey(), kvp.getValue().toString());
+                }
+            }
+        }
+        
         return headers;
     }
     
@@ -59,19 +70,20 @@ public class RabbitMQUtil {
     }
     
     public static ConnectionFactory getFactory(Context context){
+        Preconditions.checkArgument(context!=null, "context cannot be null.");
         ConnectionFactory factory = new ConnectionFactory();
         
         String hostname = context.getString("hostname");
-        Preconditions.checkState(hostname!=null, "No hostname specified.");
+        Preconditions.checkArgument(hostname!=null, "No hostname specified.");
         factory.setHost(hostname);
         
-        int port = context.getInteger("port", -1);
+        int port = context.getInteger(RabbitMQConstants.CONFIG_PORT, -1);
         
         if(-1!=port){
             factory.setPort(port);
         }
         
-        String username = context.getString("user");
+        String username = context.getString(RabbitMQConstants.CONFIG_USER);
         
         if(null==username){
             factory.setUsername(ConnectionFactory.DEFAULT_USER);
@@ -79,7 +91,7 @@ public class RabbitMQUtil {
             factory.setUsername(username);
         }
         
-        String password = context.getString("password");
+        String password = context.getString(RabbitMQConstants.CONFIG_PASSWORD);
         
         if(null==password){
             factory.setPassword(ConnectionFactory.DEFAULT_PASS);
@@ -87,13 +99,13 @@ public class RabbitMQUtil {
             factory.setPassword(password);
         }
         
-        String virtualHost = context.getString("virtualhost");
+        String virtualHost = context.getString(RabbitMQConstants.CONFIG_VIRTUALHOST);
         
         if(null!=virtualHost){
             factory.setVirtualHost(virtualHost);
         }
         
-        int connectionTimeout = context.getInteger("connectiontimeout", -1);
+        int connectionTimeout = context.getInteger(RabbitMQConstants.CONFIG_CONNECTIONTIMEOUT, -1);
         
         if(connectionTimeout>-1){
            factory.setConnectionTimeout(connectionTimeout); 

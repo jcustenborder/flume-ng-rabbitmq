@@ -112,7 +112,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         }
         
         try {
-            Map<String, String> properties = RabbitMQUtil.setProperties(response.getProps());
+            Map<String, String> properties = RabbitMQUtil.getHeaders(response.getProps());
 
             Event event = new SimpleEvent();
             event.setBody(response.getBody());
