@@ -19,17 +19,28 @@
  */
 package org.apache.flume.source.rabbitmq;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.GetResponse;
+import java.util.List;
 import java.util.Map;
-import org.apache.flume.*;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.flume.Context;
+import org.apache.flume.CounterGroup;
+import org.apache.flume.Event;
+import org.apache.flume.EventDeliveryException;
+import org.apache.flume.PollableSource;
+import org.apache.flume.RabbitMQConstants;
+import org.apache.flume.RabbitMQUtil;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.event.SimpleEvent;
 import org.apache.flume.source.AbstractSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.QueueingConsumer;
 
 
 public class RabbitMQSource extends AbstractSource implements Configurable, PollableSource {
@@ -39,6 +50,8 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
     private Connection _Connection;
     private Channel _Channel;
     private String _QueueName;
+    private String _ExchangeName;
+    private String[] _Topics;
       
     public RabbitMQSource(){
         _CounterGroup = new CounterGroup();
@@ -49,6 +62,9 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
     public void configure(Context context) {
         _ConnectionFactory = RabbitMQUtil.getFactory(context);        
         _QueueName = RabbitMQUtil.getQueueName(context);  
+        _ExchangeName = RabbitMQUtil.getExchangeName(context);
+        _Topics = RabbitMQUtil.getTopics(context);
+        System.out.println( "After configuration: " + _ExchangeName );
     }
 
     
@@ -87,44 +103,74 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
                 _Channel = _Connection.createChannel();
                 _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_NEW_CHANNEL);
                 if(log.isInfoEnabled())log.info(this.getName() + " - Connected to " + _ConnectionFactory.getHost() + ":" + _ConnectionFactory.getPort());
+                
+                if( StringUtils.isNotEmpty(_ExchangeName) ) {
+                	try {
+        	        	//declare an exchange
+        	        	_Channel.exchangeDeclarePassive(_ExchangeName);  
+        	        	
+        	        	//only grab a default queuename if one is not specified in config
+        	        	if( StringUtils.isEmpty( _QueueName ) ) {
+        	        		_QueueName = _Channel.queueDeclare().getQueue();
+        	        	}
+        	        	
+        	        	//for each topic, bind to the key
+        	        	if( null != _Topics ) {
+	        	        	for ( String topic : _Topics ) {
+	        	        		_Channel.queueBind(_QueueName, _ExchangeName, topic);
+	        	        	}
+        	        	}
+                	}
+                	catch( Exception ex ) {              
+                        if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while declaring exchange.", ex);
+                        resetConnection();
+                        return Status.BACKOFF;
+                    }      
+                }
             } catch(Exception ex) {              
                 if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while creating channel.", ex);
                 resetConnection();
                 return Status.BACKOFF;
             }             
         }
-        
-        GetResponse response;
-        
-        try {
-            response = _Channel.basicGet(_QueueName, false);
-             _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET);
-        } catch (Exception ex){
-            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
-            if(log.isErrorEnabled()) log.error(this.getName() + " - Exception thrown while pulling from queue.", ex);          
-            resetConnection();
-            return Status.BACKOFF;
-        }
-        
-        if(null==response){
-            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET_MISS);
-            return Status.BACKOFF;
-        }
-        
-        try {
-            Map<String, String> properties = RabbitMQUtil.getHeaders(response.getProps());
 
-            Event event = new SimpleEvent();
-            event.setBody(response.getBody());
-            event.setHeaders(properties);
+		GetResponse response;
 
-            getChannelProcessor().processEvent(event);            
-        } catch(Exception ex){
-            if(log.isErrorEnabled())
-                log.error(this.getName() + " - Exception thrown while processing event", ex);
-            
-            return Status.BACKOFF;
-        }
+		try {
+			response = _Channel.basicGet(_QueueName, false);
+			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET);
+		} 
+		catch (Exception ex) {
+			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
+			if (log.isErrorEnabled())
+				log.error(this.getName() + " - Exception thrown while pulling from queue.", ex);
+			resetConnection();
+			return Status.BACKOFF;
+		}
+
+		if (null == response) {
+			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET_MISS);
+			return Status.BACKOFF;
+		}
+
+		try {
+			Map<String, String> properties = RabbitMQUtil.getHeaders(response
+					.getProps());
+
+			Event event = new SimpleEvent();
+			event.setBody(response.getBody());
+			event.setHeaders(properties);
+
+			System.out.println("Request Body: " + new String(event.getBody()));
+
+			getChannelProcessor().processEvent(event);
+		} catch (Exception ex) {
+			if (log.isErrorEnabled())
+				log.error(this.getName()
+						+ " - Exception thrown while processing event", ex);
+
+			return Status.BACKOFF;
+		}
 
         try {
             _Channel.basicAck(response.getEnvelope().getDeliveryTag(), false);
