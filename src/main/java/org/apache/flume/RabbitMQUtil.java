@@ -19,15 +19,17 @@
 
 package org.apache.flume;
 
+import java.util.Date;
+import java.util.Map;
+
+import org.apache.commons.collections.map.CaseInsensitiveMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Preconditions;
 import com.rabbitmq.client.BasicProperties;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import java.util.Date;
-import java.util.Map;
-import org.apache.commons.collections.map.CaseInsensitiveMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 public class RabbitMQUtil {
@@ -60,13 +62,22 @@ public class RabbitMQUtil {
     }
     
     public static String getQueueName(Context context) {
-        String queueName = context.getString(RabbitMQConstants.CONFIG_QUEUENAME);
-        Preconditions.checkState(queueName!=null, "No queueName specified.");
-        return queueName;
+        return context.getString(RabbitMQConstants.CONFIG_QUEUENAME, "");
+        //Preconditions.checkState(queueName!=null, "No queueName specified.");
     }
     
     public static String getExchangeName(Context context){
-        return context.getString(RabbitMQConstants.CONFIG_QUEUENAME, "");
+        return context.getString(RabbitMQConstants.CONFIG_EXCHANGENAME, "");
+    }
+    
+    public static String[] getTopics( Context context ) {
+    	String list = context.getString( RabbitMQConstants.CONFIG_TOPICS, "" );
+    	
+    	if ( !list.equals("") ) {
+    		return list.split(",");
+    	}
+    	
+    	return null;
     }
     
     public static ConnectionFactory getFactory(Context context){
