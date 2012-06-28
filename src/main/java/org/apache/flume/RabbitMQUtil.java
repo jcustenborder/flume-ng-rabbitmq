@@ -20,7 +20,6 @@
 package org.apache.flume;
 
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.collections.map.CaseInsensitiveMap;

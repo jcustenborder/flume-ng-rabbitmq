@@ -19,7 +19,6 @@
  */
 package org.apache.flume.source.rabbitmq;
 
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
@@ -40,7 +39,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.GetResponse;
-import com.rabbitmq.client.QueueingConsumer;
 
 
 public class RabbitMQSource extends AbstractSource implements Configurable, PollableSource {
@@ -64,7 +62,6 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         _QueueName = RabbitMQUtil.getQueueName(context);  
         _ExchangeName = RabbitMQUtil.getExchangeName(context);
         _Topics = RabbitMQUtil.getTopics(context);
-        System.out.println( "After configuration: " + _ExchangeName );
     }
 
     
@@ -161,13 +158,10 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
 			event.setBody(response.getBody());
 			event.setHeaders(properties);
 
-			System.out.println("Request Body: " + new String(event.getBody()));
-
 			getChannelProcessor().processEvent(event);
 		} catch (Exception ex) {
 			if (log.isErrorEnabled())
-				log.error(this.getName()
-						+ " - Exception thrown while processing event", ex);
+				log.error(this.getName() + " - Exception thrown while processing event", ex);
 
 			return Status.BACKOFF;
 		}
