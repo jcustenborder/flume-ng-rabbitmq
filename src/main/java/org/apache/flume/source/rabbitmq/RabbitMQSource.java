@@ -62,8 +62,9 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         _QueueName = RabbitMQUtil.getQueueName(context);  
         _ExchangeName = RabbitMQUtil.getExchangeName(context);
         _Topics = RabbitMQUtil.getTopics(context);
+        
+        ensureConfigCompleteness( context );
     }
-
     
     @Override
     public synchronized void stop() {
@@ -177,5 +178,20 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         }
         
         return Status.READY;       
+    }
+    
+
+    /**
+     * Verify that the required configuration is set
+     * 
+     * @param context
+     */
+    private void ensureConfigCompleteness( Context context ) {
+    	
+    	if( StringUtils.isEmpty(context.getString( RabbitMQConstants.CONFIG_EXCHANGENAME ) ) &&
+    			StringUtils.isEmpty( context.getString( RabbitMQConstants.CONFIG_QUEUENAME ) ) ) {
+
+    		throw new IllegalArgumentException( "You must configure at least one of queue name or exchange name parameters" );
+    	}
     }
 }
