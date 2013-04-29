@@ -128,7 +128,7 @@ public class RabbitMQUtil {
            factory.setConnectionTimeout(connectionTimeout);
         }
 
-        boolean useSSL = context.getBoolean("usessl", false);
+        boolean useSSL = context.getBoolean(RabbitMQConstants.CONFIG_SSL, false);
 
         if(useSSL){
             factory.useSslProtocol();
