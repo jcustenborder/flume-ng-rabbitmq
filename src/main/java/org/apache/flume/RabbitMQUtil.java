@@ -22,6 +22,10 @@ package org.apache.flume;
 import java.util.Date;
 import java.util.Map;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.KeyManagementException;
+import javax.net.ssl.SSLContext;
+
 import org.apache.commons.collections.map.CaseInsensitiveMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +84,9 @@ public class RabbitMQUtil {
     	return null;
     }
 
-    public static ConnectionFactory getFactory(Context context){
+    public static ConnectionFactory getFactory(Context context)
+        throws NoSuchAlgorithmException, KeyManagementException
+    {
         Preconditions.checkArgument(context!=null, "context cannot be null.");
         ConnectionFactory factory = new ConnectionFactory();
 
@@ -122,13 +128,11 @@ public class RabbitMQUtil {
            factory.setConnectionTimeout(connectionTimeout);
         }
 
+        boolean useSSL = context.getBoolean("usessl", false);
 
-
-//        boolean useSSL = context.getBoolean("usessl", false);
-//        if(useSSL){
-//            factory.useSslProtocol();
-//        }
-
+        if(useSSL){
+            factory.useSslProtocol();
+        }
 
         return factory;
     }
