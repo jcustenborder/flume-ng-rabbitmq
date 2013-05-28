@@ -20,9 +20,8 @@ Another optional configuration option is the declaration of topic routing keys t
 
 Another optional configuration option is the declaration of selector mappings - You can send an event to specific channel, by its name.
 To enable is option, you must add - agent.sources.amqp.selector.type = multiplexing to the configuration.
-The channels list is space-delimited list.(agent.sources.amqp.channels= A B C). In any case - the event will be sent to Default Channels.
-
-
+The channels' list is space-delimited list.(agent.sources.amqp.channels= A B C). In any case - the event will be sent to Default Channels.
+If the messages are not in JSON structure - the messages will be sent to default channels.
 
 **Minimal Config Example**
 
