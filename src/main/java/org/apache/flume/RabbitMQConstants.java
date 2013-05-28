@@ -36,4 +36,10 @@ public class RabbitMQConstants {
     public final static String CONFIG_EXCHANGENAME="exchangename";
     public final static String CONFIG_QUEUENAME="queuename";
     public final static String CONFIG_TOPICS="topics";
+    public final static String CONFIG_SELECTOR_TYPE_MULTIPLEXING ="multiplexing";
+    public final static String CONFIG_SELECTOR_HEADER ="selector.header";
+    public final static String CONFIG_SELECTOR_TYPE ="selector.type";
+    public final static String CONFIG_SELECTOR_MAPPING ="selector.mapping.";
+    public final static String CONFIG_CHANNELS ="channels";
+    public final static String CONFIG_DEFAULT_CHANNELS ="channels.default";
 }
