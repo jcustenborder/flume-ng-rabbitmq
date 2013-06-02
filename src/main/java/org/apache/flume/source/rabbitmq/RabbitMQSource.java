@@ -107,20 +107,28 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
                 
                 if( StringUtils.isNotEmpty(_ExchangeName) ) {
                 	try {
+                        if(log.isInfoEnabled())log.info(this.getName() + " - creating exchange...");
         	        	//declare an exchange
-        	        	_Channel.exchangeDeclarePassive(_ExchangeName);
+                        _Channel.exchangeDeclare(_ExchangeName,"direct",true,true,null);
+        	        	//_Channel.exchangeDeclarePassive(_ExchangeName);
 
         	        	//only grab a default queuename if one is not specified in config
+                        if(log.isInfoEnabled())log.info(this.getName() + " - creating queue...");
         	        	if( StringUtils.isEmpty( _QueueName ) ) {
         	        		_QueueName = _Channel.queueDeclare().getQueue();
-        	        	}
+        	        	} else {
+                            // declare the queue anyway
+                            _Channel.queueDeclare(_QueueName,true,true,true,null);
+                        }
 
         	        	//for each topic, bind to the key
         	        	if( null != _Topics ) {
 	        	        	for ( String topic : _Topics ) {
 	        	        		_Channel.queueBind(_QueueName, _ExchangeName, topic);
 	        	        	}
-        	        	}
+        	        	} else {
+                            _Channel.queueBind(_QueueName, _ExchangeName, _QueueName); // binds the exchange to queue by default
+                        }
                 	}
                 	catch( Exception ex ) {              
                         if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while declaring exchange.", ex);
