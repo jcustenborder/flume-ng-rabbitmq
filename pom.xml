@@ -11,6 +11,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flume.version>1.2.0-cdh4.1.2</flume.version>
 		<rabbitmq.version>2.8.2</rabbitmq.version>
+        <jettison.version>1.3.3</jettison.version>
 		<junit.version>4.10</junit.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -33,6 +34,11 @@
 			<artifactId>amqp-client</artifactId>
 			<version>${rabbitmq.version}</version>
 		</dependency>
+        <dependency>
+            <groupId>org.codehaus.jettison</groupId>
+            <artifactId>jettison</artifactId>
+            <version>${jettison.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>

@@ -63,7 +63,6 @@ public class RabbitMQUtil {
     
     public static String getQueueName(Context context) {
         return context.getString(RabbitMQConstants.CONFIG_QUEUENAME, "");
-        //Preconditions.checkState(queueName!=null, "No queueName specified.");
     }
     
     public static String getExchangeName(Context context){
@@ -71,68 +70,73 @@ public class RabbitMQUtil {
     }
     
     public static String[] getTopics( Context context ) {
-    	String list = context.getString( RabbitMQConstants.CONFIG_TOPICS, "" );
-    	
-    	if ( !list.equals("") ) {
-    		return list.split(",");
-    	}
-    	
-    	return null;
+        return getStrings(context, RabbitMQConstants.CONFIG_TOPICS,",");
     }
-    
+
+    public static String getSelectorHeader( Context context ) {
+        return context.getString(RabbitMQConstants.CONFIG_SELECTOR_HEADER,"");
+    }
+
+    public static String[] getDefaultChannels( Context context ) {
+        return getStrings(context, RabbitMQConstants.CONFIG_DEFAULT_CHANNELS," ");
+    }
+
+    public static String[] getChannelNames( Context context ) {
+        return getStrings(context, RabbitMQConstants.CONFIG_CHANNELS, " ");
+    }
+
+    public static Map<String,String> getSelectorsMappings( Context context ) {
+        if (context.getString(RabbitMQConstants.CONFIG_SELECTOR_TYPE).compareTo(RabbitMQConstants.CONFIG_SELECTOR_TYPE_MULTIPLEXING) == 0) {
+            return context.getSubProperties(RabbitMQConstants.CONFIG_SELECTOR_MAPPING);
+        }
+        return null;
+    }
+
     public static ConnectionFactory getFactory(Context context){
         Preconditions.checkArgument(context!=null, "context cannot be null.");
         ConnectionFactory factory = new ConnectionFactory();
-        
-        String hostname = context.getString("hostname");
+
+        String hostname = context.getString(RabbitMQConstants.CONFIG_HOSTNAME);
         Preconditions.checkArgument(hostname!=null, "No hostname specified.");
         factory.setHost(hostname);
-        
+
         int port = context.getInteger(RabbitMQConstants.CONFIG_PORT, -1);
-        
+
         if(-1!=port){
             factory.setPort(port);
         }
-        
+
         String username = context.getString(RabbitMQConstants.CONFIG_USERNAME);
-        
+
         if(null==username){
             factory.setUsername(ConnectionFactory.DEFAULT_USER);
         } else {
             factory.setUsername(username);
         }
-        
+
         String password = context.getString(RabbitMQConstants.CONFIG_PASSWORD);
-        
+
         if(null==password){
             factory.setPassword(ConnectionFactory.DEFAULT_PASS);
         } else {
             factory.setPassword(password);
         }
-        
+
         String virtualHost = context.getString(RabbitMQConstants.CONFIG_VIRTUALHOST);
-        
+
         if(null!=virtualHost){
             factory.setVirtualHost(virtualHost);
         }
-        
+
         int connectionTimeout = context.getInteger(RabbitMQConstants.CONFIG_CONNECTIONTIMEOUT, -1);
-        
+
         if(connectionTimeout>-1){
-           factory.setConnectionTimeout(connectionTimeout); 
+           factory.setConnectionTimeout(connectionTimeout);
         }
-        
-        
-        
-//        boolean useSSL = context.getBoolean("usessl", false);
-//        if(useSSL){
-//            factory.useSslProtocol();
-//        }
-        
-        
+
         return factory;
     }
-    
+
     public static void close(Connection connection, com.rabbitmq.client.Channel channel){
         if(null!=channel) {
             try {
@@ -141,7 +145,7 @@ public class RabbitMQUtil {
                 if(log.isErrorEnabled())log.error("Exception thrown while closing channel", ex);
             }
         }
-        
+
         if(null!=connection) {
             try {
                 connection.close();
@@ -149,5 +153,15 @@ public class RabbitMQUtil {
                 if(log.isErrorEnabled())log.error("Exception thrown while closing connection", ex);
             }
         }
+    }
+
+    private static String[] getStrings(Context context, String key, String seperator) {
+        String list = context.getString( key, "" );
+
+        if ( !list.equals("") ) {
+            return list.split(seperator);
+        }
+
+        return null;
     }
 }

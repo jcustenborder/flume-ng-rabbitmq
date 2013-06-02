@@ -19,6 +19,7 @@
 package org.apache.flume;
 
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.SaslConfig;
 import junit.framework.Assert;
 import org.junit.Test;
 import org.junit.Before;
@@ -50,7 +51,7 @@ public class RabbitMQUtilTest {
     @Before
     public void createContext() {
         context = new Context();
-        context.put(RabbitMQConstants.CONFIG_HOSTNAME, "server01.example.com");
+        context.put(RabbitMQConstants.CONFIG_HOSTNAME, "127.0.0.1");
         context.put(RabbitMQConstants.CONFIG_PORT, "12345");
         context.put(RabbitMQConstants.CONFIG_CONNECTIONTIMEOUT, "30000");
         context.put(RabbitMQConstants.CONFIG_PASSWORD, "daofoasidnfioand");
@@ -70,7 +71,8 @@ public class RabbitMQUtilTest {
         Assert.assertEquals("Username does not match", context.getString(RabbitMQConstants.CONFIG_USERNAME), factory.getUsername());
         Assert.assertEquals("VirtualHost does not match", context.getString(RabbitMQConstants.CONFIG_VIRTUALHOST), factory.getVirtualHost());
     }
-    
+
+    @Test
     public void getFactory_minimal(){
         context = new Context();
         context.put(RabbitMQConstants.CONFIG_HOSTNAME, "server01.example.com");
@@ -79,6 +81,12 @@ public class RabbitMQUtilTest {
         Assert.assertNotNull("factory should not be null", context);
         
         Assert.assertEquals("Host does not match", context.getString(RabbitMQConstants.CONFIG_HOSTNAME), factory.getHost());
+    }
+
+    @Test
+    public void getFactory_maxmiall(){
+        ConnectionFactory factory = RabbitMQUtil.getFactory(context);
+        System.out.println(context);
     }
     
 }
