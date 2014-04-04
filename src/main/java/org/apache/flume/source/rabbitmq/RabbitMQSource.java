@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.QueueingConsumer;
 
 
 public class RabbitMQSource extends AbstractSource implements Configurable, PollableSource {
@@ -46,6 +46,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
     private CounterGroup _CounterGroup;
     private ConnectionFactory _ConnectionFactory;
     private Connection _Connection;
+    private QueueingConsumer _Consumer;
     private Channel _Channel;
     private String _QueueName;
     private String _ExchangeName;
@@ -131,11 +132,21 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
                 return Status.BACKOFF;
             }             
         }
+        if(null == _Consumer){
+        	try{
+        		_Consumer = new QueueingConsumer(_Channel);
+    			_Channel.basicConsume(_QueueName, false, _Consumer);
+        	}catch( Exception ex ) {              
+                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while registering consumer", ex);
+                resetConnection();
+                return Status.BACKOFF;
+            }      
+        }
 
-		GetResponse response;
+		QueueingConsumer.Delivery delivery;
 
 		try {
-			response = _Channel.basicGet(_QueueName, false);
+			 delivery = _Consumer.nextDelivery();
 			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET);
 		} 
 		catch (Exception ex) {
@@ -146,17 +157,15 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
 			return Status.BACKOFF;
 		}
 
-		if (null == response) {
+		if (null == delivery) {
 			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET_MISS);
 			return Status.BACKOFF;
 		}
 
 		try {
-			Map<String, String> properties = RabbitMQUtil.getHeaders(response
-					.getProps());
-
+			Map<String, String> properties = RabbitMQUtil.getHeaders(delivery.getProperties());
 			Event event = new SimpleEvent();
-			event.setBody(response.getBody());
+			event.setBody(delivery.getBody());
 			event.setHeaders(properties);
 
 			getChannelProcessor().processEvent(event);
@@ -168,8 +177,8 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
 		}
 
         try {
-            _Channel.basicAck(response.getEnvelope().getDeliveryTag(), false);
-             _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_ACK);
+        	_Channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_ACK);
         } catch(Exception ex){
             _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
             if(log.isErrorEnabled())log.error(this.getName() + " - Exception thrown while sending ack to queue", ex);
