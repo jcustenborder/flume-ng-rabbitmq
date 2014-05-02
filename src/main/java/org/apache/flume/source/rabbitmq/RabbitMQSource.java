@@ -162,7 +162,8 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
 			getChannelProcessor().processEvent(event);
 		} catch (Exception ex) {
 			if (log.isErrorEnabled())
-				log.error(this.getName() + " - Exception thrown while processing event", ex);
+				log.error(this.getName() + " - Exception thrown while processing event", ex.getMessage());
+        log.error(e,e);
 
 			return Status.BACKOFF;
 		}
