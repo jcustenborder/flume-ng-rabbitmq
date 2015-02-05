@@ -79,6 +79,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         RabbitMQUtil.close(_Connection, _Channel);
         _Connection=null;
         _Channel=null;
+        _Consumer=null;
     }
     
     @Override
@@ -102,7 +103,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
                 _Channel = _Connection.createChannel();
                 _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_NEW_CHANNEL);
                 if(log.isInfoEnabled())log.info(this.getName() + " - Connected to " + _ConnectionFactory.getHost() + ":" + _ConnectionFactory.getPort());
-                
+                _Consumer=null;
                 if( StringUtils.isNotEmpty(_ExchangeName) ) {
                 	try {
         	        	//declare an exchange
