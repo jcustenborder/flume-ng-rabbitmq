@@ -22,16 +22,9 @@ package org.apache.flume.source.rabbitmq;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.flume.Context;
-import org.apache.flume.CounterGroup;
-import org.apache.flume.Event;
-import org.apache.flume.EventDeliveryException;
-import org.apache.flume.PollableSource;
-import org.apache.flume.RabbitMQConstants;
-import org.apache.flume.RabbitMQUtil;
-import org.apache.flume.conf.Configurable;
+import org.apache.flume.*;
 import org.apache.flume.event.SimpleEvent;
-import org.apache.flume.source.AbstractSource;
+import org.apache.flume.source.AbstractPollableSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +34,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
 
-public class RabbitMQSource extends AbstractSource implements Configurable, PollableSource {
+public class RabbitMQSource extends AbstractPollableSource {
     private static final Logger log = LoggerFactory.getLogger(RabbitMQSource.class);
     private CounterGroup _CounterGroup;
     private ConnectionFactory _ConnectionFactory;
@@ -55,21 +48,133 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
     public RabbitMQSource(){
         _CounterGroup = new CounterGroup();
     }
-    
-    
+
     @Override
-    public void configure(Context context) {
-        _ConnectionFactory = RabbitMQUtil.getFactory(context);        
-        _QueueName = RabbitMQUtil.getQueueName(context);  
+    protected Status doProcess() throws EventDeliveryException {
+        if(null==_Connection){
+            try {
+                if(log.isInfoEnabled())log.info(this.getName() + " - Opening connection to " + _ConnectionFactory.getHost() + ":" + _ConnectionFactory.getPort());
+                _Connection = _ConnectionFactory.newConnection();
+                _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_NEW_CONNECTION);
+                _Channel = null;
+            } catch(Exception ex) {
+                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while establishing connection.", ex);
+                resetConnection();
+                return Status.BACKOFF;
+            }
+        }
+
+        if(null==_Channel){
+            try {
+                if(log.isInfoEnabled())log.info(this.getName() + " - creating channel...");
+                _Channel = _Connection.createChannel();
+                _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_NEW_CHANNEL);
+                if(log.isInfoEnabled())log.info(this.getName() + " - Connected to " + _ConnectionFactory.getHost() + ":" + _ConnectionFactory.getPort());
+                _Consumer=null;
+                if( StringUtils.isNotEmpty(_ExchangeName) ) {
+                    try {
+                        //declare an exchange
+                        _Channel.exchangeDeclarePassive(_ExchangeName);
+
+                        //only grab a default queuename if one is not specified in config
+                        if( StringUtils.isEmpty( _QueueName ) ) {
+                            _QueueName = _Channel.queueDeclare().getQueue();
+                        }
+
+                        //for each topic, bind to the key
+                        if( null != _Topics ) {
+                            for ( String topic : _Topics ) {
+                                _Channel.queueBind(_QueueName, _ExchangeName, topic);
+                            }
+                        }
+                    }
+                    catch( Exception ex ) {
+                        if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while declaring exchange.", ex);
+                        resetConnection();
+                        return Status.BACKOFF;
+                    }
+                }
+            } catch(Exception ex) {
+                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while creating channel.", ex);
+                resetConnection();
+                return Status.BACKOFF;
+            }
+        }
+        if(null == _Consumer){
+            try{
+                _Consumer = new QueueingConsumer(_Channel);
+                _Channel.basicConsume(_QueueName, false, _Consumer);
+            }catch( Exception ex ) {
+                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while registering consumer", ex);
+                resetConnection();
+                return Status.BACKOFF;
+            }
+        }
+
+        QueueingConsumer.Delivery delivery;
+
+        try {
+            delivery = _Consumer.nextDelivery();
+            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET);
+        }
+        catch (Exception ex) {
+            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
+            if (log.isErrorEnabled())
+                log.error(this.getName() + " - Exception thrown while pulling from queue.", ex);
+            resetConnection();
+            return Status.BACKOFF;
+        }
+
+        if (null == delivery) {
+            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET_MISS);
+            return Status.BACKOFF;
+        }
+
+        try {
+            Map<String, String> properties = RabbitMQUtil.getHeaders(delivery.getProperties());
+            Event event = new SimpleEvent();
+            event.setBody(delivery.getBody());
+            event.setHeaders(properties);
+
+            getChannelProcessor().processEvent(event);
+        } catch (Exception ex) {
+            if (log.isErrorEnabled())
+                log.error(this.getName() + " - Exception thrown while processing event", ex);
+
+            return Status.BACKOFF;
+        }
+
+        try {
+            _Channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_ACK);
+        } catch(Exception ex){
+            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
+            if(log.isErrorEnabled())log.error(this.getName() + " - Exception thrown while sending ack to queue", ex);
+            resetConnection();
+            return Status.BACKOFF;
+        }
+
+        return Status.READY;
+    }
+
+    @Override
+    protected void doConfigure(Context context) throws FlumeException {
+        _ConnectionFactory = RabbitMQUtil.getFactory(context);
+        _QueueName = RabbitMQUtil.getQueueName(context);
         _ExchangeName = RabbitMQUtil.getExchangeName(context);
         _Topics = RabbitMQUtil.getTopics(context);
-        
+
         ensureConfigCompleteness( context );
     }
-    
+
     @Override
-    public synchronized void stop() {
-        RabbitMQUtil.close(_Connection, _Channel);      
+    protected void doStart() throws FlumeException {
+
+    }
+
+    @Override
+    protected void doStop() throws FlumeException {
+        RabbitMQUtil.close(_Connection, _Channel);
         super.stop();
     }
     
@@ -81,120 +186,11 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Poll
         _Channel=null;
         _Consumer=null;
     }
-    
-    @Override
-    public PollableSource.Status process() throws EventDeliveryException {
-        if(null==_Connection){
-            try {
-                if(log.isInfoEnabled())log.info(this.getName() + " - Opening connection to " + _ConnectionFactory.getHost() + ":" + _ConnectionFactory.getPort());
-                _Connection = _ConnectionFactory.newConnection();
-                _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_NEW_CONNECTION);               
-                _Channel = null;
-            } catch(Exception ex) {
-                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while establishing connection.", ex);
-                resetConnection();
-                return Status.BACKOFF;
-            }            
-        }
-        
-        if(null==_Channel){
-            try {
-                if(log.isInfoEnabled())log.info(this.getName() + " - creating channel...");
-                _Channel = _Connection.createChannel();
-                _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_NEW_CHANNEL);
-                if(log.isInfoEnabled())log.info(this.getName() + " - Connected to " + _ConnectionFactory.getHost() + ":" + _ConnectionFactory.getPort());
-                _Consumer=null;
-                if( StringUtils.isNotEmpty(_ExchangeName) ) {
-                	try {
-        	        	//declare an exchange
-        	        	_Channel.exchangeDeclarePassive(_ExchangeName);  
-        	        	
-        	        	//only grab a default queuename if one is not specified in config
-        	        	if( StringUtils.isEmpty( _QueueName ) ) {
-        	        		_QueueName = _Channel.queueDeclare().getQueue();
-        	        	}
-        	        	
-        	        	//for each topic, bind to the key
-        	        	if( null != _Topics ) {
-	        	        	for ( String topic : _Topics ) {
-	        	        		_Channel.queueBind(_QueueName, _ExchangeName, topic);
-	        	        	}
-        	        	}
-                	}
-                	catch( Exception ex ) {              
-                        if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while declaring exchange.", ex);
-                        resetConnection();
-                        return Status.BACKOFF;
-                    }      
-                }
-            } catch(Exception ex) {              
-                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while creating channel.", ex);
-                resetConnection();
-                return Status.BACKOFF;
-            }             
-        }
-        if(null == _Consumer){
-        	try{
-        		_Consumer = new QueueingConsumer(_Channel);
-    			_Channel.basicConsume(_QueueName, false, _Consumer);
-        	}catch( Exception ex ) {              
-                if(log.isErrorEnabled()) log.error(this.getName() + " - Exception while registering consumer", ex);
-                resetConnection();
-                return Status.BACKOFF;
-            }      
-        }
-
-		QueueingConsumer.Delivery delivery;
-
-		try {
-			 delivery = _Consumer.nextDelivery();
-			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET);
-		} 
-		catch (Exception ex) {
-			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
-			if (log.isErrorEnabled())
-				log.error(this.getName() + " - Exception thrown while pulling from queue.", ex);
-			resetConnection();
-			return Status.BACKOFF;
-		}
-
-		if (null == delivery) {
-			_CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_GET_MISS);
-			return Status.BACKOFF;
-		}
-
-		try {
-			Map<String, String> properties = RabbitMQUtil.getHeaders(delivery.getProperties());
-			Event event = new SimpleEvent();
-			event.setBody(delivery.getBody());
-			event.setHeaders(properties);
-
-			getChannelProcessor().processEvent(event);
-		} catch (Exception ex) {
-			if (log.isErrorEnabled())
-				log.error(this.getName() + " - Exception thrown while processing event", ex);
-
-			return Status.BACKOFF;
-		}
-
-        try {
-        	_Channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_ACK);
-        } catch(Exception ex){
-            _CounterGroup.incrementAndGet(RabbitMQConstants.COUNTER_EXCEPTION);
-            if(log.isErrorEnabled())log.error(this.getName() + " - Exception thrown while sending ack to queue", ex);
-            resetConnection();
-            return Status.BACKOFF;            
-        }
-        
-        return Status.READY;       
-    }
-    
 
     /**
      * Verify that the required configuration is set
      * 
-     * @param context
+     * @param context Context
      */
     private void ensureConfigCompleteness( Context context ) {
     	
