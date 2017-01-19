@@ -26,7 +26,7 @@ public class RabbitMQConstants {
     public final static String COUNTER_GET_MISS="rabbitmq.getmiss";
     public final static String COUNTER_ACK="rabbitmq.ack";
     public final static String COUNTER_PUBLISH="rabbitmq.publish";
-    
+
     public final static String CONFIG_HOSTNAME="hostname";
     public final static String CONFIG_PORT="port";
     public final static String CONFIG_USERNAME="username";
@@ -36,4 +36,5 @@ public class RabbitMQConstants {
     public final static String CONFIG_EXCHANGENAME="exchangename";
     public final static String CONFIG_QUEUENAME="queuename";
     public final static String CONFIG_TOPICS="topics";
+    public final static String CONFIG_SSL="usessl";
 }
