@@ -9,7 +9,7 @@
 	<url>http://maven.apache.org</url>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<flume.version>1.2.0-cdh4.1.2</flume.version>
+		<flume.version>1.6.0-cdh5.5.0</flume.version>
 		<rabbitmq.version>2.8.2</rabbitmq.version>
 		<junit.version>4.10</junit.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
